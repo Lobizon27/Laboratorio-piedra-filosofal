@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Laboratorio 3D: La Piedra Filosofal</title>
+<style>
+  body { margin: 0; overflow: hidden; font-family: Arial; background: #000; }
+  #hud {
+    position: fixed; top: 10px; left: 10px; color: #7fffd4;
+    background: rgba(0,0,0,0.85); padding: 12px 18px; border-radius: 8px;
+    border: 2px solid #7fffd4; font-size: 14px; z-index: 10; min-width: 280px;
+  }
+  #hud h3 { margin: 0 0 8px; color: #fff; font-size: 16px; }
+  #receta { color: #f1c40f; font-weight: bold; min-height: 20px; }
+  #mision {
+    position: fixed; top: 10px; right: 10px; color: #fff;
+    background: rgba(0,0,0,0.85); padding: 12px 16px; border-radius: 8px;
+    border: 2px solid #f1c40f; font-size: 13px; z-index: 10; max-width: 280px;
+  }
+  #mision h3 { margin: 0 0 8px; color: #f1c40f; font-size: 15px; }
+  #mision ul { margin: 0; padding-left: 18px; }
+  #mision li { margin: 4px 0; color: #9fd3ff; }
+  #mision li.hecho { color: #2ecc71; text-decoration: line-through; }
+  #mision .pista {
+    margin-top: 10px; padding: 8px; background: rgba(255,215,0,0.1);
+    border: 1px dashed #f1c40f; border-radius: 6px; font-size: 12px; color: #ffd700;
+  }
+  #mensaje {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    color: #fff; background: rgba(0,0,0,0.9); padding: 14px 28px;
+    border-radius: 8px; font-size: 20px; z-index: 10; display: none;
+    border: 2px solid #7fffd4; text-align: center; max-width: 80%;
+  }
+  #crosshair {
+    position: fixed; top: 50%; left: 50%; width: 20px; height: 20px;
+    margin: -10px 0 0 -10px; z-index: 5; pointer-events: none;
+    border: 2px solid rgba(127,255,212,0.6); border-radius: 50%;
+  }
+  #overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 100; color: #7fffd4; text-align: center; cursor: pointer; padding: 20px;
+  }
+  #overlay h1 { font-size: 30px; margin-bottom: 15px; text-shadow: 0 0 20px #7fffd4; }
+  #overlay p { font-size: 15px; color: #9fd3ff; max-width: 520px; line-height: 1.7; }
+  #error {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    color: #e74c3c; background: #000; padding: 20px; border: 2px solid #e74c3c;
+    border-radius: 8px; z-index: 999; display: none; max-width: 80%;
+  }
+  #final {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+    display: none; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 200; color: #fff; text-align: center; padding: 30px;
+    animation: aparecer 1s ease-in;
+  }
+  @keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+  #final h1 { font-size: 36px; color: #ffd700; text-shadow: 0 0 30px #ffd700; margin-bottom: 20px; }
+  #final p { font-size: 18px; color: #9fd3ff; max-width: 600px; line-height: 1.8; margin: 10px 0; }
+  #final .chiste { font-size: 22px; color: #7fffd4; margin-top: 25px; font-style: italic; }
+  #flash {
+    position: fixed; inset: 0; background: #ff6b6b; opacity: 0;
+    pointer-events: none; z-index: 50; transition: opacity 0.1s;
+  }
+</style>
+</head>
+<body>
+<div id="flash"></div>
+<div id="crosshair"></div>
+<div id="hud">
+  <h3>🧪 Tu poción</h3>
+  <div id="receta">(vacía)</div>
+  <div style="margin-top:8px;font-size:12px;color:#9fd3ff">
+    Clic en frasco = agregar<br>
+    [M] = mezclar (en el caldero central)<br>
+    [R] = vaciar<br>
+    [P] = trampa (4 ingredientes)
+  </div>
+</div>
+<div id="mision">
+  <h3>📜 Misión: La Piedra Filosofal</h3>
+  <ul>
+    <li id="obj1">Mezclar Agua + Sal → Agua Salada</li>
+    <li id="obj2">Beber Agua Salada</li>
+    <li id="obj3">Mezclar Metano + Oro → Elixir Dorado</li>
+    <li id="obj4">Beber Elixir Dorado</li>
+    <li id="obj5">Crear la Piedra Filosofal ✨</li>
+  </ul>
+  <div class="pista">
+    💡 <b>Pista final:</b> juntá <b>Agua + Sal + Metano + Oro</b> y mezclá <b>sobre el caldero del medio</b>.<br>
+    ⚠️ <b>Cuidado:</b> las mezclas inválidas <b>explotan</b>.
+  </div>
+</div>
+<div id="mensaje"></div>
+<div id="overlay">
+  <h1>🧪 Laboratorio 3D</h1>
+  <p><b>Misión:</b> crear la legendaria Piedra Filosofal.<br><br>
+  Movete con <b>WASD</b>, mirá con el <b>mouse</b>.<br>
+  Clic en los frascos para agregar ingredientes.<br>
+  <b>M</b> para mezclar (cerca del caldero central).<br>
+  ⚠️ <b>Las mezclas inválidas explotan.</b><br><br>
+  <i>Hacé clic acá para empezar.</i></p>
+</div>
+<div id="error"></div>
+<div id="final">
+  <h1>✨ ¡MUY BIEN! ✨</h1>
+  <p>Creaste la legendaria <b>Piedra Filosofal</b>...</p>
+  <p class="chiste">...pero no es lo que esperabas.<br>Son los amigos que hicimos en el camino. xd</p>
+  <p style="margin-top:30px;font-size:14px;color:#666">(Hacé clic para volver a jugar)</p>
+</div>
+
+<script>
+window.addEventListener("error", function(e) {
+  var err = document.getElementById("error");
+  err.style.display = "block";
+  err.textContent = "ERROR: " + e.message + " (línea " + e.lineno + ")";
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+
+<script>
+try {
+  // === AUDIO ===
+  var audioCtx = null;
+  var musicaIniciada = false;
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  }
+
+  function tono(freq, dur, tipo, vol, delay) {
+    if (!audioCtx) return;
+    tipo = tipo || "sine";
+    vol = vol || 0.1;
+    delay = delay || 0;
+    var t = audioCtx.currentTime + delay;
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = tipo;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(vol, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+  }
+
+  function ruido(dur, vol) {
+    if (!audioCtx) return;
+    var bufferSize = audioCtx.sampleRate * dur;
+    var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    var source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    var gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    var filter = audioCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 800;
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    source.start();
+  }
+
+  function sonidoAgregar() { tono(600, 0.1, "sine", 0.08); tono(900, 0.1, "sine", 0.06, 0.05); }
+  function sonidoMezclaBien() { tono(523, 0.15, "triangle", 0.1); tono(659, 0.15, "triangle", 0.1, 0.12); tono(784, 0.3, "triangle", 0.1, 0.24); }
+  function sonidoMezclaMal() { tono(200, 0.2, "sawtooth", 0.1); tono(150, 0.3, "sawtooth", 0.1, 0.1); }
+  function sonidoExplosion() {
+    ruido(0.6, 0.3);
+    tono(80, 0.5, "sawtooth", 0.2);
+    tono(60, 0.7, "sawtooth", 0.15, 0.1);
+    tono(1200, 0.1, "square", 0.05);
+  }
+  function sonidoPiedra() {
+    tono(523, 0.4, "sine", 0.15);
+    tono(659, 0.4, "sine", 0.15, 0.2);
+    tono(784, 0.4, "sine", 0.15, 0.4);
+    tono(1047, 1.5, "sine", 0.2, 0.6);
+    tono(1319, 1.5, "triangle", 0.1, 0.8);
+  }
+
+  var musicaTimer = null;
+  function iniciarMusica() {
+    if (musicaIniciada || !audioCtx) return;
+    musicaIniciada = true;
+    var notas = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63];
+    var i = 0;
+    function loop() {
+      if (!audioCtx) return;
+      var n = notas[i % notas.length];
+      tono(n, 1.8, "sine", 0.03);
+      tono(n * 2, 1.5, "sine", 0.015);
+      i++;
+      musicaTimer = setTimeout(loop, 1800);
+    }
+    loop();
+  }
+
+  // === ESCENA ===
+  const escena = new THREE.Scene();
+  escena.background = new THREE.Color(0x0a0a1a);
+  escena.fog = new THREE.Fog(0x0a0a1a, 5, 25);
+
+  const camara = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
+  camara.position.set(0, 1.6, 5);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  escena.add(new THREE.AmbientLight(0x404060, 1));
+  const luzTecho = new THREE.PointLight(0xffffff, 1.5, 30);
+  luzTecho.position.set(0, 5, 0);
+  luzTecho.castShadow = true;
+  escena.add(luzTecho);
+  const luzVerde = new THREE.PointLight(0x7fffd4, 1, 15);
+  luzVerde.position.set(-4, 2, -4);
+  escena.add(luzVerde);
+  const luzRoja = new THREE.PointLight(0xff6b6b, 1, 15);
+  luzRoja.position.set(4, 2, -4);
+  escena.add(luzRoja);
+  const luzDorada = new THREE.PointLight(0xffd700, 0, 25);
+  luzDorada.position.set(0, 3, 2);
+  escena.add(luzDorada);
+
+  const suelo = new THREE.Mesh(
+    new THREE.PlaneGeometry(20, 20),
+    new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.8 })
+  );
+  suelo.rotation.x = -Math.PI/2;
+  suelo.receiveShadow = true;
+  escena.add(suelo);
+
+  const paredMat = new THREE.MeshStandardMaterial({ color: 0x2e4057, roughness: 0.9 });
+  [[0,3,-10,0],[0,3,10,Math.PI],[-10,3,0,Math.PI/2],[10,3,0,-Math.PI/2]].forEach(function(p) {
+    const pared = new THREE.Mesh(new THREE.BoxGeometry(20, 6, 0.3), paredMat);
+    pared.position.set(p[0], p[1], p[2]);
+    pared.rotation.y = p[3];
+    pared.receiveShadow = true;
+    escena.add(pared);
+  });
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(20, 0.3, 20), paredMat);
+  techo.position.y = 6;
+  escena.add(techo);
+
+  // === MESAS Y FRASCOS ===
+  const mesas = [
+    { x: -4, z: -4, color: 0x2ecc71, nombre: "Agua (H2O)", id: "H2O" },
+    { x: 0, z: -4, color: 0xe74c3c, nombre: "Acido (HCl)", id: "HCl" },
+    { x: 4, z: -4, color: 0xf1c40f, nombre: "Sal (NaCl)", id: "NaCl" },
+    { x: -2, z: -6, color: 0xe67e22, nombre: "Metano (CH4)", id: "CH4" },
+    { x: 2, z: -6, color: 0xffd700, nombre: "Oro (Au)", id: "Au" }
+  ];
+  const frascos = [];
+  const mesaMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9 });
+
+  mesas.forEach(function(m) {
+    const mesa = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.2), mesaMat);
+    mesa.position.set(m.x, 0.4, m.z);
+    mesa.castShadow = true; mesa.receiveShadow = true;
+    escena.add(mesa);
+
+    const frasco = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.25, 0.5, 16),
+      new THREE.MeshStandardMaterial({
+        color: m.color, emissive: m.color, emissiveIntensity: 0.3,
+        transparent: true, opacity: 0.85
+      })
+    );
+    frasco.position.set(m.x, 1.05, m.z);
+    frasco.castShadow = true;
+    frasco.userData = { id: m.id, nombre: m.nombre };
+    escena.add(frasco);
+
+    const tapa = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0xcccccc })
+    );
+    tapa.position.set(m.x, 1.35, m.z);
+    escena.add(tapa);
+    frascos.push(frasco);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 256; canvas.height = 64;
+    const c = canvas.getContext("2d");
+    c.fillStyle = "rgba(0,0,0,0.8)"; c.fillRect(0, 0, 256, 64);
+    c.fillStyle = "#" + m.color.toString(16).padStart(6, "0");
+    c.font = "bold 22px Arial"; c.textAlign = "center";
+    c.fillText(m.nombre, 128, 42);
+    const tex = new THREE.CanvasTexture(canvas);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex }));
+    sprite.position.set(m.x, 2, m.z);
+    sprite.scale.set(2.5, 0.6, 1);
+    sprite.userData = { id: m.id, nombre: m.nombre };
+    escena.add(sprite);
+  });
+
+  // === CALDERO CENTRAL ===
+  const caldero = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.9, 0.7, 0.9, 24),
+    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.2 })
+  );
+  caldero.position.set(0, 0.45, 2);
+  caldero.castShadow = true;
+  escena.add(caldero);
+
+  const mesaCaldero = new THREE.Mesh(
+    new THREE.BoxGeometry(1.6, 0.2, 1.6),
+    new THREE.MeshStandardMaterial({ color: 0x3a2a1a })
+  );
+  mesaCaldero.position.set(0, 0.1, 2);
+  mesaCaldero.receiveShadow = true;
+  escena.add(mesaCaldero);
+
+  const brilloCaldero = new THREE.PointLight(0x7fffd4, 0.5, 4);
+  brilloCaldero.position.set(0, 1.2, 2);
+  escena.add(brilloCaldero);
+
+  (function() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 256; canvas.height = 64;
+    const c = canvas.getContext("2d");
+    c.fillStyle = "rgba(0,0,0,0.8)"; c.fillRect(0, 0, 256, 64);
+    c.fillStyle = "#7fffd4";
+    c.font = "bold 20px Arial"; c.textAlign = "center";
+    c.fillText("CALDERO CENTRAL", 128, 40);
+    const tex = new THREE.CanvasTexture(canvas);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex }));
+    sprite.position.set(0, 2, 2);
+    sprite.scale.set(2.5, 0.6, 1);
+    escena.add(sprite);
+  })();
+
+  // === PIEDRA FILOSOFAL ===
+  const piedraGeo = new THREE.IcosahedronGeometry(0.35, 1);
+  const piedraMat = new THREE.MeshStandardMaterial({
+    color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0,
+    metalness: 1, roughness: 0.1, transparent: true, opacity: 0
+  });
+  const piedra = new THREE.Mesh(piedraGeo, piedraMat);
+  piedra.position.set(0, 1.3, 2);
+  piedra.visible = false;
+  escena.add(piedra);
+
+  // === PARTÍCULAS DE EXPLOSIÓN ===
+  const particulas = [];
+  function crearExplosion(pos) {
+    for (var i = 0; i < 30; i++) {
+      var geo = new THREE.SphereGeometry(0.08 + Math.random() * 0.1, 6, 6);
+      var mat = new THREE.MeshStandardMaterial({
+        color: Math.random() > 0.5 ? 0xff6b6b : 0xffa500,
+        emissive: 0xff4400, emissiveIntensity: 1,
+        transparent: true, opacity: 1
+      });
+      var p = new THREE.Mesh(geo, mat);
+      p.position.copy(pos);
+      p.userData = {
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: Math.random() * 0.3 + 0.1,
+        vz: (Math.random() - 0.5) * 0.3,
+        vida: 1
+      };
+      escena.add(p);
+      particulas.push(p);
+    }
+    var ondaGeo = new THREE.SphereGeometry(0.3, 16, 16);
+    var ondaMat = new THREE.MeshBasicMaterial({
+      color: 0xff6b6b, transparent: true, opacity: 0.8, side: THREE.DoubleSide
+    });
+    var onda = new THREE.Mesh(ondaGeo, ondaMat);
+    onda.position.copy(pos);
+    onda.userData = { esOnda: true, vida: 1 };
+    escena.add(onda);
+    particulas.push(onda);
+  }
+
+  // === CONTROLES ===
+  const controles = new THREE.PointerLockControls(camara, document.body);
+  escena.add(controles.getObject());
+
+  // === ESTADO ===
+  const receta = [];
+  const objetivos = { obj1: false, obj2: false, obj3: false, obj4: false, obj5: false };
+  const recetaDiv = document.getElementById("receta");
+  const mensajeDiv = document.getElementById("mensaje");
+  const overlay = document.getElementById("overlay");
+  const finalDiv = document.getElementById("final");
+  const flashDiv = document.getElementById("flash");
+
+  const RECETAS = {
+    "H2O+NaCl": { nombre: "Agua Salada", efecto: "Sabe raro, pero hidrata", color: 0x3498db, objetivo: "obj1" },
+    "Au+CH4": { nombre: "Elixir Dorado", efecto: "Te sentís brillante", color: 0xffd700, objetivo: "obj3" },
+    "Au+CH4+H2O+NaCl": { nombre: "Piedra Filosofal", efecto: "¡Lo lograste!", color: 0xffd700, objetivo: "obj5" }
+  };
+
+  const DISTANCIA_CALDERO = 2.5;
+  const CALDERO_POS = new THREE.Vector3(0, 0, 2);
+
+  var sacudida = 0;
+  function sacudir(intensidad) { sacudida = intensidad; }
+
+  function actualizarReceta() {
+    if (receta.length === 0) {
+      recetaDiv.textContent = "(vacia)";
+      recetaDiv.style.color = "#f1c40f";
+    } else {
+      const conteo = {};
+      receta.forEach(function(id) { conteo[id] = (conteo[id] || 0) + 1; });
+      recetaDiv.textContent = Object.keys(conteo).map(function(k) { return conteo[k] + "x " + k; }).join(" + ");
+      recetaDiv.style.color = "#fff";
+    }
+  }
+
+  function mostrarMensaje(texto, color) {
+    color = color || "#7fffd4";
+    mensajeDiv.textContent = texto;
+    mensajeDiv.style.color = color;
+    mensajeDiv.style.display = "block";
+    clearTimeout(mensajeDiv._timer);
+    mensajeDiv._timer = setTimeout(function() { mensajeDiv.style.display = "none"; }, 3500);
+  }
+
+  function marcarObjetivo(id) {
+    if (objetivos[id]) return;
+    objetivos[id] = true;
+    document.getElementById(id).classList.add("hecho");
+  }
+
+  function explotar() {
+    sonidoExplosion();
+    flashDiv.style.opacity = "0.6";
+    setTimeout(function() { flashDiv.style.opacity = "0"; }, 150);
+    crearExplosion(new THREE.Vector3(0, 1.3, 2));
+    sacudir(0.4);
+    mostrarMensaje("💥 ¡BOOM! Mezcla inestable. Perdiste los ingredientes.", "#ff6b6b");
+    receta.length = 0;
+    actualizarReceta();
+  }
+
+  // === RAYCAST ===
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2(0, 0);
+
+  document.addEventListener("mousedown", function(e) {
+    if (!controles.isLocked) return;
+    initAudio();
+    raycaster.setFromCamera(mouse, camara);
+    const objetosClicables = frascos.slice();
+    escena.children.forEach(function(obj) {
+      if (obj.isSprite && obj.userData && obj.userData.id) objetosClicables.push(obj);
+    });
+    const intersects = raycaster.intersectObjects(objetosClicables, true);
+    if (intersects.length > 0) {
+      let obj = intersects[0].object;
+      if (obj.isSprite) {
+        let mejor = null, mejorDist = Infinity;
+        frascos.forEach(function(f) {
+          const d = f.position.distanceTo(obj.position);
+          if (d < mejorDist) { mejorDist = d; mejor = f; }
+        });
+        if (mejor && mejorDist < 1) obj = mejor;
+      }
+      if (obj.userData && obj.userData.id) {
+        receta.push(obj.userData.id);
+        actualizarReceta();
+        sonidoAgregar();
+        mostrarMensaje("Agregaste " + obj.userData.nombre + " (total: " + receta.length + ")");
+      }
+    }
+  });
+
+  // === TECLAS M, R, P ===
+  document.addEventListener("keydown", function(e) {
+    const k = e.key.toLowerCase();
+    initAudio();
+
+    if (k === "m") {
+      if (receta.length === 0) { mostrarMensaje("La pocion esta vacia", "#e74c3c"); return; }
+      const unicos = Array.from(new Set(receta)).sort();
+      const clave = unicos.join("+");
+
+      if (clave === "Au+CH4+H2O+NaCl") {
+        const dist = camara.position.distanceTo(CALDERO_POS);
+        if (dist > DISTANCIA_CALDERO) {
+          mostrarMensaje("¡Acercate al CALDERO CENTRAL para crear la Piedra Filosofal!", "#e74c3c");
+          sonidoMezclaMal();
+          return;
+        }
+        receta.length = 0;
+        actualizarReceta();
+        marcarObjetivo("obj5");
+        piedra.visible = true;
+        piedraMat.opacity = 1;
+        piedraMat.emissiveIntensity = 2;
+        luzDorada.intensity = 4;
+        brilloCaldero.intensity = 5;
+        sonidoPiedra();
+        mostrarMensaje("✨ ¡La Piedra Filosofal está brillando sobre el caldero! ✨", "#ffd700");
+        setTimeout(function() {
+          controles.unlock();
+          finalDiv.style.display = "flex";
+        }, 4000);
+        return;
+      }
+
+      if (RECETAS[clave]) {
+        const p = RECETAS[clave];
+        mostrarMensaje("¡" + p.nombre + "! → " + p.efecto, "#" + p.color.toString(16).padStart(6, "0"));
+        sonidoMezclaBien();
+        if (p.objetivo === "obj1") { marcarObjetivo("obj1"); marcarObjetivo("obj2"); }
+        if (p.objetivo === "obj3") { marcarObjetivo("obj3"); marcarObjetivo("obj4"); }
+        receta.length = 0;
+        actualizarReceta();
+      } else {
+        explotar();
+      }
+    }
+    if (k === "r") {
+      receta.length = 0;
+      actualizarReceta();
+      mostrarMensaje("Pocion vaciada", "#9fd3ff");
+    }
+    if (k === "p") {
+      receta.length = 0;
+      receta.push("H2O", "NaCl", "CH4", "Au");
+      actualizarReceta();
+      mostrarMensaje("Trampa: 4 ingredientes listos. Acercate al caldero y apretá M", "#f1c40f");
+    }
+  });
+
+  // === MOVIMIENTO ===
+  const teclas = {};
+  document.addEventListener("keydown", function(e) { teclas[e.key.toLowerCase()] = true; });
+  document.addEventListener("keyup", function(e) { teclas[e.key.toLowerCase()] = false; });
+
+  const velocidad = 0.1;
+  let tiempo = 0;
+
+  function animar() {
+    requestAnimationFrame(animar);
+    tiempo += 0.016;
+
+    if (controles.isLocked) {
+      const dir = new THREE.Vector3();
+      if (teclas["w"]) dir.z -= 1;
+      if (teclas["s"]) dir.z += 1;
+      if (teclas["a"]) dir.x -= 1;
+      if (teclas["d"]) dir.x += 1;
+      if (dir.length() > 0) {
+        dir.normalize();
+        const camDir = new THREE.Vector3();
+        camara.getWorldDirection(camDir);
+        camDir.y = 0; camDir.normalize();
+        const right = new THREE.Vector3().crossVectors(camDir, new THREE.Vector3(0,1,0));
+        const mov = new THREE.Vector3()
+          .addScaledVector(camDir, -dir.z * velocidad)
+          .addScaledVector(right, dir.x * velocidad);
+        camara.position.add(mov);
+        camara.position.x = Math.max(-9, Math.min(9, camara.position.x));
+        camara.position.z = Math.max(-9, Math.min(9, camara.position.z));
+        camara.position.y = 1.6;
+      }
+    }
+
+    if (sacudida > 0.01) {
+      camara.position.x += (Math.random() - 0.5) * sacudida;
+      camara.position.y += (Math.random() - 0.5) * sacudida;
+      camara.position.z += (Math.random() - 0.5) * sacudida;
+      sacudida *= 0.9;
+    } else {
+      camara.position.y = 1.6;
+      sacudida = 0;
+    }
+
+    frascos.forEach(function(f, i) {
+      f.position.y = 1.05 + Math.sin(tiempo * 2 + i) * 0.05;
+      f.rotation.y += 0.01;
+    });
+
+    // Partículas
+    for (var i = particulas.length - 1; i >= 0; i--) {
+      var p = particulas[i];
+      if (p.userData.esOnda) {
+        p.scale.multiplyScalar(1.15);
+        p.material.opacity -= 0.05;
+        if (p.material.opacity <= 0) {
+          escena.remove(p);
+          particulas.splice(i, 1);
+        }
+      } else {
+        p.position.x += p.userData.vx;
+        p.position.y += p.userData.vy;
+        p.position.z += p.userData.vz;
+        p.userData.vy -= 0.01;
+        p.userData.vida -= 0.02;
+        p.material.opacity = p.userData.vida;
+        p.scale.multiplyScalar(0.97);
+        if (p.userData.vida <= 0) {
+          escena.remove(p);
+          particulas.splice(i, 1);
+        }
+      }
+    }
+
+    // Piedra girando
+    if (piedra.visible) {
+      piedra.rotation.y += 0.03;
+      piedra.rotation.x += 0.015;
+      const pulso = 1 + Math.sin(tiempo * 5) * 0.15;
+      piedra.scale.set(pulso, pulso, pulso);
+      piedraMat.emissiveIntensity = 1.5 + Math.sin(tiempo * 5) * 0.8;
+      luzDorada.intensity = 3 + Math.sin(tiempo * 4) * 1.5;
+    }
+
+    luzVerde.intensity = 1 + Math.sin(tiempo * 3) * 0.3;
+    luzRoja.intensity = 1 + Math.cos(tiempo * 3) * 0.3;
+    if (!piedra.visible) brilloCaldero.intensity = 0.5 + Math.sin(tiempo * 4) * 0.3;
+
+    renderer.render(escena, camara);
+  }
+  animar();
+
+  window.addEventListener("resize", function() {
+    camara.aspect = window.innerWidth / window.innerHeight;
+    camara.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  overlay.addEventListener("click", function() {
+    initAudio();
+    iniciarMusica();
+    controles.lock();
+  });
+  controles.addEventListener("lock", function() { overlay.style.display = "none"; });
+  controles.addEventListener("unlock", function() {
+    if (!objetivos.obj5) overlay.style.display = "flex";
+  });
+
+  finalDiv.addEventListener("click", function() { location.reload(); });
+
+} catch (e) {
+  var err = document.getElementById("error");
+  err.style.display = "block";
+  err.textContent = "ERROR al iniciar: " + e.message;
+  console.error(e);
+}
+</script>
+</body>
+</html>
